@@ -23,6 +23,7 @@ For a lesson on how to use the affiliations service API, check out the
 - [`api/cdwg_list/`](#apicdwg_list)
 - [`api/cdwg_detail/id/<int:id>/`](#apicdwg_detailidintid)
 - [`api/cdwg_detail/name/<str:name>/`](#apicdwg_detailnamestrname)
+- [`api/cdwg_detail/uuid/<str:uuid>/`](#apicdwg_detailuuidstruuid)
 - [`api/cdwg/create/`](#apicdwgcreate)
 - [`api/cdwg/id/<int:id>/update/`](#apicdwgidintidupdate)
 
@@ -104,16 +105,27 @@ To issue `GET` requests to this route, you must have an API key.
 Shows detailed information for a specific clinical domain working group given the name.
 To issue `GET` requests to this route, you must have an API key.
 
+#### `api/cdwg_detail/uuid/<str:uuid>/`
+
+Shows detailed information for a specific clinical domain working group given the GPM UUID.
+To issue `GET` requests to this route, you must have an API key.
+
 #### `api/cdwg/create/`
 
 Creates a new clinical domain working group. To issue a `POST` request to this route,
-you must have an API key with write access. The only required field is the `name` of
-the clinical domain working group.
+you must have an API key with write access. Returns the `name`, `id`, and `uuid` of the
+created record if successful. If a CDWG with the given UUID already exists, returns the
+existing record with HTTP 200 instead of creating a duplicate.
+
+**Required Fields**:
+
+- `name` (*string*): The name of the clinical domain working group.
+- `uuid` (*string*): The GPM UUID for the clinical domain working group.
 
 #### `api/cdwg/id/<int:id>/update/`
 
 Updates a clinical domain working group by ID. To issue a `PATCH` request to this route,
 you must have an API key with write access. The ID of the clinical domain working group
 must be part of the URL. Fields that need to be updated should be included in the
-request.
+request. Note that the `uuid` field is read-only and cannot be updated.
 
