@@ -47,6 +47,9 @@ class ClinicalDomainWorkingGroup(models.Model):
         help_text="""The full name of the clinical domain
         working group.""",
     )  # type: object
+    uuid: models.UUIDField = models.UUIDField(
+        unique=True, null=True, blank=True, verbose_name="GPM UUID"
+    )
 
     class Meta:
         """Describe the fields on a CDWG."""

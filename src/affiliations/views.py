@@ -107,13 +107,31 @@ class AffiliationUpdateView(generics.RetrieveUpdateAPIView):
 
 
 class CDWGCreateView(generics.CreateAPIView):
-    """Create a new CDWG."""
+    """Create a new CDWG.
+
+    If a CDWG with the given UUID already exists,
+    it returns the existing record with HTTP 200 instead of creating a duplicate.
+    """
 
     permission_classes = [HasWriteAccess]
     serializer_class = ClinicalDomainWorkingGroupSerializer
     queryset = ClinicalDomainWorkingGroup.objects.all()
 
     def create(self, request, *args, **kwargs):
+        # Check for existing CDWG with same UUID
+        uuid_val = request.data.get("uuid")
+        if uuid_val:
+            existing = ClinicalDomainWorkingGroup.objects.filter(uuid=uuid_val).first()
+            if existing:
+                return Response(
+                    {
+                        "name": existing.name,
+                        "id": existing.id,
+                        "uuid": str(existing.uuid),
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
@@ -122,6 +140,7 @@ class CDWGCreateView(generics.CreateAPIView):
             {
                 "name": instance.name,
                 "id": instance.id,
+                "uuid": str(instance.uuid),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -168,6 +187,18 @@ class CDWGDetailView(generics.RetrieveAPIView):
                 raise Http404("A CDWG with that name does not exist.") from exc
 
         raise Http404("No CDWG ID or name provided.")
+
+
+class CDWGDetailByUUID(generics.RetrieveAPIView):
+    """Look up a CDWG by its UUID."""
+
+    permission_classes = [HasAffilsAPIKey]
+    queryset = ClinicalDomainWorkingGroup.objects.all()
+    serializer_class = ClinicalDomainWorkingGroupSerializer
+
+    def get_object(self):
+        uuid = self.kwargs.get("uuid")
+        return get_object_or_404(ClinicalDomainWorkingGroup, uuid=uuid)
 
 
 @api_view(["GET"])

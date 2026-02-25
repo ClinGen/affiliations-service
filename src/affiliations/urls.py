@@ -47,6 +47,10 @@ urlpatterns: list[URLResolver | URLPattern] = [
         views.CDWGDetailView.as_view(),
     ),
     path(
+        "cdwg_detail/uuid/<str:uuid>/",
+        views.CDWGDetailByUUID.as_view(),
+    ),
+    path(
         "cdwg/create/",
         views.CDWGCreateView.as_view(),
     ),

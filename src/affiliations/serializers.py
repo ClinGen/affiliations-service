@@ -20,6 +20,7 @@ from affiliations.utils import (
     validate_unique_cdwg_name,
     validate_cdwg_matches_type,
     check_duplicate_affiliation_uuid,
+    check_duplicate_cdwg_uuid,
     validate_type_and_uuid,
 )
 
@@ -64,18 +65,36 @@ class SubmitterSerializer(serializers.ModelSerializer):
 class ClinicalDomainWorkingGroupSerializer(serializers.ModelSerializer):
     """Serialize Clinical Domain Working Group objects."""
 
+    uuid = serializers.UUIDField(required=False, allow_null=True)
+
     class Meta:
         """Describe the fields on a CDWG object."""
 
         model = ClinicalDomainWorkingGroup
-        fields = ["id", "name"]
+        fields = ["id", "name", "uuid"]
 
     def validate(self, attrs):
         instance_id = self.instance.pk if self.instance else None
         try:
             validate_unique_cdwg_name(attrs["name"], instance_id)
-        except serializers.ValidationError as e:
-            raise e
+        except ValidationError as e:
+            raise serializers.ValidationError(e.messages)
+
+        # Validate UUID on creation.
+        if self.instance is None:
+            uuid_val = attrs.get("uuid")
+            if not uuid_val:
+                raise serializers.ValidationError({"uuid": "This field is required."})
+            if check_duplicate_cdwg_uuid(uuid_val):
+                raise serializers.ValidationError({"uuid": "This UUID already exists."})
+        else:
+            # Prevent UUID changes on update.
+            uuid_val = attrs.get("uuid")
+            if uuid_val is not None and self.instance.uuid != uuid_val:
+                raise serializers.ValidationError(
+                    {"uuid": "uuid is a read-only field and cannot be updated."}
+                )
+
         return attrs
 
 

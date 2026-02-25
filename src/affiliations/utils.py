@@ -121,6 +121,16 @@ def check_duplicate_affiliation_uuid(uuid_val: UUID, instance=None) -> bool:
     return uuid_value.exists()
 
 
+def check_duplicate_cdwg_uuid(uuid_val: UUID, instance=None) -> bool:
+    """Check if a CDWG with the given UUID already exists."""
+    if uuid_val is None:
+        return False
+    uuid_qs = ClinicalDomainWorkingGroup.objects.filter(uuid=uuid_val)
+    if instance:
+        uuid_qs = uuid_qs.exclude(pk=instance.pk)
+    return uuid_qs.exists()
+
+
 def validate_type_and_uuid(cleaned_data: dict) -> None:
     """Validate that Independent Groups do not have UUIDs."""
     uuid_val = cleaned_data.get("uuid")

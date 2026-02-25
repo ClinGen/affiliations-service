@@ -405,14 +405,18 @@ class TestCDWGApi(APITestCase):
             name="test-service", can_write=True
         )
         cls.cdwg1, _ = ClinicalDomainWorkingGroup.objects.get_or_create(
-            name="Cardiology"
+            name="Cardiology",
+            defaults={"uuid": "11111111-1111-1111-1111-111111111111"},
         )
-        cls.cdwg2, _ = ClinicalDomainWorkingGroup.objects.get_or_create(name="Oncology")
+        cls.cdwg2, _ = ClinicalDomainWorkingGroup.objects.get_or_create(
+            name="Oncology",
+            defaults={"uuid": "22222222-2222-2222-2222-222222222222"},
+        )
 
     def test_create_cdwg_success(self):
         """Test that a new CDWG can be successfully created with valid data."""
         self.client.credentials(HTTP_X_API_KEY=self.api_key)
-        data = {"name": "Neurology"}
+        data = {"name": "Neurology", "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
         response = self.client.post(
             "/api/cdwg/create/",
             data,
@@ -420,12 +424,91 @@ class TestCDWGApi(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["name"], "Neurology")
+        self.assertEqual(response.data["uuid"], "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
+    def test_create_cdwg_without_uuid_fails(self):
+        """Test that creating a CDWG without UUID fails."""
+        self.client.credentials(HTTP_X_API_KEY=self.api_key)
+        data = {"name": "Dermatology"}
+        response = self.client.post(
+            "/api/cdwg/create/",
+            data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("uuid", response.data["details"])
+
+    def test_create_cdwg_idempotent_with_existing_uuid(self):
+        """Test that creating a CDWG with an existing UUID returns the existing record."""
+        self.client.credentials(HTTP_X_API_KEY=self.api_key)
+        test_uuid = "11111111-2222-3333-4444-555555555555"
+
+        # First creation
+        data = {"name": "Pulmonology", "uuid": test_uuid}
+        response1 = self.client.post("/api/cdwg/create/", data, format="json")
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+        original_id = response1.data["id"]
+
+        # Second creation with same UUID should return existing record
+        data2 = {"name": "Different Name", "uuid": test_uuid}
+        response2 = self.client.post("/api/cdwg/create/", data2, format="json")
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        self.assertEqual(response2.data["id"], original_id)
+        self.assertEqual(response2.data["name"], "Pulmonology")  # Original name
+
+    def test_get_cdwg_by_uuid_success(self):
+        """Test that a CDWG can be retrieved by its UUID."""
+        self.client.credentials(HTTP_X_API_KEY=self.api_key)
+        test_uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+        # Create a CDWG with UUID
+        data = {"name": "Rheumatology", "uuid": test_uuid}
+        self.client.post("/api/cdwg/create/", data, format="json")
+
+        # Look up by UUID
+        response = self.client.get(f"/api/cdwg_detail/uuid/{test_uuid}/", format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "Rheumatology")
+        self.assertEqual(response.data["uuid"], test_uuid)
+
+    def test_get_cdwg_by_uuid_not_found(self):
+        """Test that a 404 is returned when looking up a non-existent UUID."""
+        self.client.credentials(HTTP_X_API_KEY=self.api_key)
+        response = self.client.get(
+            "/api/cdwg_detail/uuid/00000000-0000-0000-0000-000000000000/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_cdwg_uuid_immutable(self):
+        """Test that UUID cannot be changed on update."""
+        self.client.credentials(HTTP_X_API_KEY=self.api_key)
+        original_uuid = "12345678-1234-1234-1234-123456789012"
+
+        # Create CDWG
+        data = {"name": "Endocrinology", "uuid": original_uuid}
+        create_response = self.client.post("/api/cdwg/create/", data, format="json")
+        cdwg_id = create_response.data["id"]
+
+        # Try to update UUID
+        update_data = {
+            "name": "Endocrinology Updated",
+            "uuid": "99999999-9999-9999-9999-999999999999",
+        }
+        response = self.client.put(
+            f"/api/cdwg/id/{cdwg_id}/update/",
+            update_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("uuid", response.data["details"])
 
     def test_update_cdwg_by_id_success(self):
-        """Test that a new CDWG can be successfully created with valid data."""
+        """Test that a CDWG name can be successfully updated."""
         self.client.credentials(HTTP_X_API_KEY=self.api_key)
+        # Don't include UUID in update; only update the name
         update_data = {"name": "Cardiology Updated"}
-        response = self.client.put(
+        response = self.client.patch(
             f"/api/cdwg/id/{self.cdwg1.id}/update/",
             update_data,
             format="json",
@@ -478,7 +561,8 @@ class TestCDWGApi(APITestCase):
     def test_create_cdwg_duplicate_name_case_insensitive(self):
         """Test that creating a CDWG with a duplicate name (case-insensitive) fails."""
         self.client.credentials(HTTP_X_API_KEY=self.api_key)
-        data = {"name": "cardiology"}  # existing is "Cardiology"
+        # existing is "Cardiology", using different case and new UUID
+        data = {"name": "cardiology", "uuid": "33333333-3333-3333-3333-333333333333"}
         response = self.client.post(
             "/api/cdwg/create/",
             data,
