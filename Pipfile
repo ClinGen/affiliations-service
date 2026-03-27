@@ -30,7 +30,7 @@ black = "==25.*"
 django-stubs = {extras = ["compatible-mypy"], version = "5.*"}
 djangorestframework-stubs = {extras = ["compatible-mypy"], version = "3.*"}
 mypy = "==1.*"
-pylint = "==3.*"
+pylint = "==4.*"
 
 [requires]
 python_version = "3.10"
