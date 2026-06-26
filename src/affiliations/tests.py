@@ -25,6 +25,7 @@ from affiliations.utils import (
     generate_next_affiliation_id,
     set_expert_panel_id,
     validate_cdwg_matches_type,
+    validate_id_duplicates,
 )
 from affiliations.permissions import HasWriteAccess
 
@@ -310,6 +311,27 @@ class AffiliationUtilsTest(TestCase):
             "If type is 'Somatic Cancer Variant Curation Expert Panel'",
             str(context.exception),
         )
+
+    def test_validate_id_duplicates_allows_multiple_independent_curation_groups(self):
+        """validate_id_duplicates should not raise when creating a second
+        INDEPENDENT_CURATION affiliation, because NULL expert_panel_id is shared
+        by all independent groups and is not a meaningful duplicate."""
+        none_cdwg, _ = ClinicalDomainWorkingGroup.objects.get_or_create(name="None")
+        Affiliation.objects.create(
+            affiliation_id=10000,
+            expert_panel_id=None,
+            full_name="First Independent Group",
+            type="INDEPENDENT_CURATION",
+            status="ACTIVE",
+            clinical_domain_working_group=none_cdwg,
+        )
+        cleaned_data = {
+            "affiliation_id": 10001,
+            "expert_panel_id": None,
+        }
+        # Should not raise — multiple INDEPENDENT_CURATION affiliations legitimately
+        # share expert_panel_id=NULL.
+        validate_id_duplicates(cleaned_data)
 
     def test_generate_next_affiliation_id_raises_validation_error(self):
         """Should raise ValidationError if next affiliation_id exceeds valid range."""

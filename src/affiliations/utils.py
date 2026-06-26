@@ -159,10 +159,12 @@ def validate_id_duplicates(cleaned_data: dict, instance=None) -> None:
     if instance:
         qs = qs.exclude(pk=instance.pk)
 
+    q = Q(affiliation_id=affil_id)
+    if ep_id is not None:
+        q |= Q(expert_panel_id=ep_id)
+
     duplicates = list(
-        qs.filter(Q(affiliation_id=affil_id) | Q(expert_panel_id=ep_id)).values(
-            "affiliation_id", "expert_panel_id"
-        )
+        qs.filter(q).values("affiliation_id", "expert_panel_id")
     )
 
     if duplicates:
